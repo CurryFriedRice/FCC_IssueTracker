@@ -7,64 +7,65 @@ const uniqID      = require('uniqid');
 chai.use(chaiHttp);
 
 suite('Functional Tests', function() {
-
-    test("Post Request with Fields Filled Out", function(){
+  /*
+    test("Invalid Fields", function(){
+      chai.request(server).post("/api/issues/functionalTests").type('form').send({}).end();
+    });
+    */ /*
+    test("POST with required Fields", function(){
+      let jsonObject = {
+            //_id: uniqID(),
+            issue_title: "Fix error in posting data",
+            issue_text: "When we post data it has an error.",
+            //created_on: "2021-06-21T04:44:26.930Z",
+            //updated_on: "2021-06-21T04:44:26.930Z",
+            created_by: "Joe",
+            //assigned_to: "Joe",
+            //open: true,
+            //status_text: ""
+          }
       chai
         .request(server)
         .post("/api/issues/functionalTests")
         .type('form')
-        .send({
-            _id: uniqID(),
-            issue_title: "Fix error in posting data",
-            issue_text: "When we post data it has an error.",
-            created_on: "2021-06-21T04:44:26.930Z",
-            updated_on: "2021-06-21T04:44:26.930Z",
-            created_by: "Joe",
-            assigned_to: "Joe",
-            open: true,
-            status_text: ""
-          })
-          .end(function(err,res){
-            
-          });
+        .send(jsonObject)
+        .end(function(err,res){
+          assert.isOk(JSON.parse(res.text), "Form Data submitted Failed to make an object");    
+        });
       });
 
 
-    test("Missing required Fields", function(){
+    test("Posting with ALL Fields", function(){
+        let jsonObject = {
+            issue_title: "NERD",    //Required Field
+            issue_text: "IS",     //Required Field
+            created_by: "BLIND",     //Required Field
+          }
       chai
         .request(server)
         .post("/api/issues/functionalTests")
         .type('form')
-        .send({
-            _id: uniqID(),
-            issue_title: "",    //Required Field
-            issue_text: "",     //Required Field
-            created_on: "2021-06-21T04:44:26.930Z",
-            updated_on: "2021-06-21T04:44:26.930Z",
-            created_by: "",     //Required Field
-            assigned_to: "Joe",
-            open: true,
-            status_text: ""
-          })
+        .send(jsonObject)
         .end(function(err,res){
-          //console.log(res.text);
-          let errMessage = {error: 'required field(s) missing'}
-          let resMessage = JSON.parse(res.text);
-          assert.deepEqual(resMessage, errMessage, "The Error messages do not match");
+          console.log(JSON.parse(res.text));
+
+          //assert.deepEqual(resMessage, errMessage, "The Error messages do not match");
         });
       });
 
       
-    test("GET to see all issues", function(){
-      chai
+    test("POSTING MISSINFG FIELDS", function(){
+      chai  
         .request(server)
         .get("/api/issues/functionalTests")
         .end(function(err,res){
           //console.log("Ooga Booga");
           //console.log(res.text);
+          
 
         });
       });
+      */
 });
 /*
 suite('Functional Tests', function() {

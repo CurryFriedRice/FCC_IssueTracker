@@ -1,31 +1,34 @@
 [
     {
-        "_id": "405gzp1b2kq73zfsa",
+        "_id": "405h0g145kqa0ke5l",
         "issue_title": "Faux Issue 1",
         "issue_text": "Get Issues Test",
-        "created_on": "2021-06-21T21:06:18.154Z",
-        "updated_on": "2021-06-21T21:06:18.154Z",
+        "created_on": "2021-06-23T21:53:55.881Z",
+        "updated_on": "2021-06-23T21:53:55.881Z",
         "created_by": "fCC",
+        "assigned_to": "",
         "open": true,
         "status_text": ""
     },
     {
-        "_id": "405gzp1b2kq73zfxe",
+        "_id": "405h0g145kqa0keax",
         "issue_title": "Faux Issue 2",
         "issue_text": "Get Issues Test",
-        "created_on": "2021-06-21T21:06:18.338Z",
-        "updated_on": "2021-06-21T21:06:18.338Z",
+        "created_on": "2021-06-23T21:53:56.073Z",
+        "updated_on": "2021-06-23T21:53:56.073Z",
         "created_by": "fCC",
+        "assigned_to": "",
         "open": true,
         "status_text": ""
     },
     {
-        "_id": "405gzp1b2kq73zg2k",
+        "_id": "405h0g145kqa0kegl",
         "issue_title": "Faux Issue 3",
         "issue_text": "Get Issues Test",
-        "created_on": "2021-06-21T21:06:18.524Z",
-        "updated_on": "2021-06-21T21:06:18.524Z",
+        "created_on": "2021-06-23T21:53:56.277Z",
+        "updated_on": "2021-06-23T21:53:56.277Z",
         "created_by": "fCC",
+        "assigned_to": "",
         "open": true,
         "status_text": ""
     }
