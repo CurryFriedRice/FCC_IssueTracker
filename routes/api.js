@@ -2,69 +2,235 @@
 const uniqID      = require('uniqid');
 const fs          = require('fs');
 
+require('dotenv').config();
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+const mySecret = process.env['MONGO_URI'];
+
+mongoose.connect(mySecret, { useNewUrlParser: true, useUnifiedTopology: true });
+
+
 //Expression ? True : False
-const IssueObj = function(ID, TITLE, TEXT, CREATED_ON, UPDATED_ON, CREATED_BY, ASSIGNED_TO, OPEN, STATUS_TEXT){
-  return {
-    _id: typeof ID == typeof "string" ? ID : uniqID(),
-    issue_title: TITLE,
-    issue_text: TEXT,
-    created_on: new Date(),//EATED_ON != undefined ? CREATED_ON : new Date(),
-    updated_on: new Date(),//UPDATED_ON != undefined ? UPDATED_ON : new Date(),
-    created_by: CREATED_BY,
-    assigned_to: typeof ASSIGNED_TO == typeof "string" ? ASSIGNED_TO : "",
-    open: OPEN != false ? true : false,
-    status_text: typeof STATUS_TEXT == typeof "string" ? STATUS_TEXT : ""
-  }
-};
+let Project;
+let Issue;
+
+const issueObj = function(formData){
+    //console.log(formData);
+    return {
+      _id:  typeof formData._id == typeof undefined ? uniqID() : formData._id,         //Required FieldR
+      issue_title: formData.issue_title,  //Required Field
+      issue_text: formData.issue_text,
+      created_on: typeof formData.created_on != typeof undefined ? formData.created_on : new Date(),
+      updated_on: typeof formData.updated_on != typeof undefined ? formData.updated_on: new Date(),
+      created_by: formData.created_by,//typeof formData.created_by != undefined ? formData.created_by : "",
+      assigned_to: typeof formData.assigned_to == typeof "string" ?formData.assigned_to : "",
+      open: formData.open == false ? false : true,
+      status_text: typeof formData.status_text == typeof "string" ? formData.status_text : ""
+      }
+    }
+
+const projectSchema = new Schema({
+  projectID : {type: String, required: true} ,
+  issues: []
+});
+Project = mongoose.model("Project", projectSchema);
+
+const createAndSaveIssue = function(projectName, formData, done) 
+{
+  //console.log("hello there");
+  let NewIssue = new issueObj(formData);
+  //console.log(NewIssue);
+
+  Project.find({projectID: projectName }, function(err, project){
+      
+      if(project.length == 0) 
+      { 
+        //console.log(projectName + " : Does not exist");
+        //console.log(err);
+        var NewProject = new Project({
+            projectID: projectName,
+            issues: [NewIssue]
+        });
+        NewProject.save();
+          //done(null, NewIssue);
+        //});
+      }
+      else
+      {  
+        var foundProject = project[0];
+        //console.log(foundProject);
+        foundProject.issues.push(NewIssue);
+        foundProject.save();
+        //console.log(project);
+        //console.log(project[0]["issues"].push(NewIssue));
+        //console.log(JSON.parse(project[0]["issues"]));
+        
+      }
+  });
+    done(null, NewIssue);
+
+    //return NewIssue;
+    
+} 
+
+const findIssueByParameter = function(_projectID, queryData, done) {
+  let keys = Object.keys(queryData);
+  Project.find({projectID : _projectID}, function(err, project){
+    if(err) return console.err(err);
+    //console.log(project);
+    //so i have the array of issues here... So now I should just filter through them all
+    let issueList = project[0]['issues'];
+    //console.log(issueList);
+    let returnIssues;
+    returnIssues = issueList.filter(function(issue){
+      //console.log(issue);
+      let isMatching = true;
+      //console.log("=== Looking for Match ===" + isMatching);
+      keys.forEach(function(key){
+          //isMatching = issue[key];
+          //console.log(key +" | "+ typeof queryData[key] + " | " +typeof  issue[key] + " | " + (typeof issue[key] ==  typeof queryData[key]));
+          
+          if(typeof issue[key] == typeof undefined) {console.log("Key not Found");}
+          else if(issue[key].toString() != queryData[key].toString()){
+            //console.log("Values are not matching");
+            //console.log(issue[key].toString() != queryData[key].toString());
+            isMatching = false;
+          }else
+          {
+            //console.log("Value Exists and Matches Data");
+            //console.log(key + " | "+ queryData[key].toString() + " | " + issue[key].toString() + " | " + (issue[key].toString() ==  queryData[key].toString()));
+          }
+          //isMatching = (typeof issue[key] != typeof undefined);
+      });
+      //console.log(isMatching);
+      if(isMatching) return issue;
+
+    });
+    /*
+    console.log (keys);
+    console.log (queryData);
+    console.log (issueList);
+    console.log (returnIssues);
+    console.log(returnIssues.length);
+    */
+    done(null, returnIssues);
+    //done(null, people);
+  });
+}
+
 //Expression ? True : False
 
+//What will be run with PUT
+const updateIssue = function(_projectID, updateData, done){
   
+  //Just right out he gate if there's no ID to check return missing ID
+  //console.log(updateData);
+  //console.log(updateData['_id']);\
+  
+  if(typeof updateData['_id'] === typeof undefined){ 
+    //console.log("missing ID");
+    return done(null, { error: 'missing _id' });
+    }
+ 
+    let keys = Object.keys(updateData).filter(function(value){
+        if(updateData[value] != '') return value; 
+    });
 
+    if (keys.length == 1) {
+      //console.log("error No uppdate Fields");
+      //console.log(keys);
+      return done(null, { error: 'no update field(s) sent', '_id': updateData['_id']});
+      }
+    
+   let filter = 
+    {
+      projectID: _projectID,
+      //issues: {"issues.$.id" : updateData['_id']} 
+      issues: { $elemMatch: { _id : updateData['_id'] } }
+    }
+    let updatedKeys = {};
+    keys.forEach(function(key){
+      let keyString = "issues.$."+key;
+      updatedKeys[keyString] = updateData[key];
+    });
+    //console.log(keys);
+    //console.log(updatedKeys);
+    updatedKeys['issues.$.updated_on'] = new Date();
+    let updateVal = 
+    {
+      $set : updatedKeys
+      //{"issues.$.issue_title": "WEABRO", "issues.$.issue_text": "ANIME", "issues.$.assigned_to": "MANLYBADASSHERO"}
+    }
+    
+    //console.log("Honk");
+    Project.findOneAndUpdate(filter,updateVal, function(err, foundItem){
+      //console.log('founditem');
+      //console.log(foundItem);
+      if(foundItem == null) {done(null, { error: 'could not update', '_id': updateData['_id'] })}
+      else done(null,{  result: 'successfully updated', '_id': updateData['_id'] } );
+      });
+  
+ 
+}
+  
+const deleteIssue = function(_projectID, issueID, done){
+  //console.log("potato");
+  if(typeof issueID == typeof undefined){
+    return done(null, {error: 'missing _id'});
+  }
+
+
+    try{
+      //console.log("Attempting to remove object");
+      //Project.remove({"issues._id": issueID});
+      let filter = 
+      {
+        projectID: _projectID,
+        issues: { $elemMatch: { _id : issueID } }
+      }
+      
+      Project.findOne(filter, function(err, foundItem){
+        if (foundItem == null) {
+          //console.error("ERROR ITEM IS NULL");
+          return done(null, {error: 'could not delete', '_id': issueID});
+        }
+        else{
+          //console.log('FIND with Filter');
+          //console.log("got through the filter, attempting to pull object");
+        Project.findOneAndUpdate({ projectID: _projectID},{$pull: {issues: {"_id":issueID}}} , function(err,foundItem){
+          //console.log('founditem');
+          //console.log(foundItem);
+          return done(null, {result: 'successfully deleted', '_id': issueID});
+        });
+        
+        }});
+    }catch(e){ 
+      //return done(null, {error: 'could not delete', '_id': issueID});
+    }
+}
 module.exports = function (app) {
 
   app.route('/api/issues/:project')
   
     .get(function (req, res){
       let project = req.params.project;
-
-      if(!fs.existsSync("testData/"+project+".json", function(err, res)
-      {
-        console.log("trying to find invalid project " + project);
-        res.json({"error": 'That File does not exist'});
-      }));
-      
-      //get ALL the data from that File
-      let appData =  JSON.parse(fs.readFileSync("testData/"+project+'.json', {encoding:'utf8', flag:'r'}));
-
-      let qData = req.query;
-      let qKeys = Object.keys(qData);
-
-      let dataExample = new IssueObj("ID", "TITLE", "TEXT", "CREATED_ON", "UPDATED_ON", "CREATED_BY", "ASSIGNED_TO", "OPEN", "STATUS_TEXT");
-      qKeys.forEach(function(key){
-        if(dataExample.hasOwnProperty(key)== false) 
-        {
-          console.log(key + " is an invalid key, not touching list");
-        }else
-        {
-          console.log(key + " Key Match: Now filtering");
-          appData = appData.filter(function(_issue)
-          {
-            return _issue[key].toString() == qData[key].toString();
-          });
-        }
+      let parameters = req.query;
+      findIssueByParameter(project, parameters, function(err, data){
+        //console.log(data);
+        if(err) console.log(err);
+        return res.json(data);
       });
-
-      res.json(appData);
+      //res.json(parameters);
     })
 
     .post(function (req, res){
       let project = req.params.project;
-      //console.log(req);
-      //console.log(req.document);
+      //console.log("POST: "+ project);  
 
-      console.log("POST: "+ project);  
       let data = req.body;
-      console.log(data);
+      //console.log(data);
+      
+      
       //Check for valid data    
       if(
         typeof data.issue_title == typeof undefined || //data.issue_title == undefined ||
@@ -75,108 +241,35 @@ module.exports = function (app) {
           let message = {error: 'required field(s) missing'};
           //console.log(message);
           //throw new Error(message);
-          res.json(message);
+          return res.json(message);
         }
 
-      let issue = new IssueObj(
-                  data._id,//ID
-                  data.issue_title,//TITLE
-                  data.issue_text,//TEXT
-                  data.created_on,//CREATED_ON
-                  data.updated_on,//UPDATED_ON
-                  data.created_by,//CREATED_BY
-                  data.assigned_to,//ASSIGNED_TO
-                  data.open,//OPEN
-                  data.status_text//STATUS_TEXT
-        );
-      
-      if(!fs.existsSync("testData/"+project+".json")){fs.writeFileSync("testData/"+project +".json");}
-      let appData = fs.readFileSync("testData/"+project+'.json', {encoding:'utf8', flag:'r'});
-      let retVal =[];
-      
-      //If there is DATA then we want to use it
-      if(appData.length == 0){retVal = [issue];}
-      else if(appData != "undefined")
-      {   
-        //So we're gonna parse the AppData
-        retVal = JSON.parse(appData); //This can't actually parse anything if string length is 0;
-        //If there's only ONE value generate an array
-        if(!Array.isArray(retVal)) retVal = [retVal, issue];
-        else {retVal.push(issue);} //If it's already an array push the new issue
-      } 
-      else 
-      {
-         retVal = [issue];
-      }
-      fs.writeFileSync("testData/"+project + ".json", JSON.stringify(retVal, null, 4));
-      //issueData.push(issue);
-
-      res.json(issue);
+        
+        createAndSaveIssue(project, data, function(err, issueData){
+          if(err) console.error(err);
+          return res.json(issueData);
+        });
       
     })
     .put(function (req, res){
       let project = req.params.project;
-      let data = req.body;
-      console.log("PUT : " + project);
-      console.log(data);
-      //Get the Data
-
-      if(typeof data['_id'] == typeof undefined){ 
-        console.log("=== ERROR ATTEMPTING TO UPDATE WITHOUT ID ===");
-        return res.json({ error: 'missing _id' });
-      }
-        let dKeys = Object.keys(data);
-        //So what I need to do is check each field to see if it's equal to nothing
-        let checkedData = {};
-        dKeys.forEach(function(key){
-          //console.log((data[key] != '') + " | "+ key);
-          if(data[key] != '') checkedData[key] = (data[key]);
-          //checkedData[key] = (data[key]); 
-        });
-        
-        //If the only key present is the ID we'll tell them there was no proper update fields sent
-        if(Object.keys(checkedData).length <= 1){ 
-          console.log("=== ERROR NO NEW FIELDS TO UPDATE ===");
-          return res.json({ error: 'no update field(s) sent', '_id':data._id });
-        }
-        else
-        {
-          console.log("Getting Appdata");
-          //if we got this far we'll try to parse for data
-          let appData =  JSON.parse(fs.readFileSync("testData/"+project+'.json', {encoding:'utf8', flag:'r'}));
-          //Find the item to be updated
-          appData.find(function(item){
-            
-            if(item['_id'] == checkedData['_id'])//If we find the item with a matching ID
-            { 
-              //console.log("found Matching Data");
-              //Then we gotta take all the keys and check them against the issue item
-              Object.keys(checkedData).forEach(function(key){
-                //console.log(key + " | " +typeof item[key]);
-                if(typeof item[key] == typeof undefined)
-                {
-                  console.log("=== ERROR COULD NOT UPDATE ID ===");
-                  return res.json({ error: 'could not update', '_id': data._id });
-                }else
-                {
-                  item[key] = checkedData[key];
-                }
-              });
-              item['updated_on'] = new Date();
-              console.log('Data successfully updated');
-            }//else{console.log(" to find Data | " + checkedData['_id']);}
-          });
-        fs.writeFileSync("testData/"+project + ".json", JSON.stringify(appData, null, 4));
-        return res.json({ result: 'successfully updated', '_id': data._id });
-        }
-      }
-    
-      
-      //
+      //console.log("PUT : " + project);
+     // console.log(req.body);
+     // console.log(req.query);
+      updateIssue(project, req.body, function(err, data){
+        if(err) res.json(err);
+        res.json(data);
+      });
     })    
     .delete(function (req, res){
       let project = req.params.project;
-      console.log("DELETE : "+ project);
+      //console.log("DELETE : "+ project);
+      //console.log('ISSUE ID'+ req.body);
+      //console.log(req.body);
+      deleteIssue(project, req.body['_id'], function(err, result){
+        if(err) console.error(err);
+        res.json(result);
+      });
     });
     
 };
